@@ -1,0 +1,136 @@
+#include "stm32f4xx_hal.h"
+#include <stdio.h>
+
+// Pin definitions
+#define D0_Pin GPIO_PIN_0
+#define D1_Pin GPIO_PIN_1
+#define D2_Pin GPIO_PIN_2
+#define D3_Pin GPIO_PIN_3
+#define D4_Pin GPIO_PIN_4
+#define D5_Pin GPIO_PIN_5
+#define D6_Pin GPIO_PIN_6
+#define D7_Pin GPIO_PIN_7
+
+#define RS_Pin GPIO_PIN_8
+#define EN_Pin GPIO_PIN_9
+
+#define LCD_PORT GPIOC
+
+// Function prototypes
+void LCD_GPIO_Init(void);
+void LCD_Init(void);
+void LCD_Command(uint8_t cmd);
+void LCD_Data(uint8_t data);
+void LCD_StringDisplay(uint8_t *str);
+
+// Example messages
+
+
+int main(void)
+{
+    HAL_Init();
+    LCD_GPIO_Init();
+    LCD_Init();
+
+    char msg_buffer[17];
+    uint32_t id_code = DBGMCU->IDCODE;
+
+    // Extract DEV_ID (bits [11:0]) and REV_ID (bits [31:16])
+    uint16_t dev_id = (uint16_t)(id_code & 0x0FFF);
+    uint16_t rev_id = (uint16_t)((id_code >> 16) & 0xFFFF);
+
+    // Display Device ID on first line
+    LCD_StringDisplay((uint8_t*)"DEV_ID:");
+    LCD_Command(0xC0); // Move to second line
+    sprintf(msg_buffer, "0x%03X", dev_id);
+    LCD_StringDisplay((uint8_t*)msg_buffer);
+
+    HAL_Delay(2000); // Pause for readability
+
+    // Clear screen and show Revision ID
+    LCD_Command(0x01); // Clear display
+    HAL_Delay(2);
+    LCD_StringDisplay((uint8_t*)"REV_ID:");
+    LCD_Command(0xC0); // Move to second line
+    sprintf(msg_buffer, "0x%04X", rev_id);
+    LCD_StringDisplay((uint8_t*)msg_buffer);
+
+    while (1)
+    {
+        // Infinite loop
+    }
+}
+
+void LCD_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = D0_Pin|D1_Pin|D2_Pin|D3_Pin|
+                          D4_Pin|D5_Pin|D6_Pin|D7_Pin|
+                          RS_Pin|EN_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(LCD_PORT, &GPIO_InitStruct);
+}
+
+void LCD_Init(void)
+{
+    LCD_Command(0x38); // 8-bit, 2-line, 5x8 dots
+    HAL_Delay(5);
+    LCD_Command(0x06); // Entry mode: increment cursor
+    HAL_Delay(5);
+    LCD_Command(0x0C); // Display ON, cursor OFF
+    HAL_Delay(5);
+    LCD_Command(0x01); // Clear display
+    HAL_Delay(5);
+}
+
+void LCD_Command(uint8_t cmd)
+{
+    HAL_GPIO_WritePin(LCD_PORT, RS_Pin, GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(LCD_PORT, D0_Pin, (cmd & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D1_Pin, (cmd & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D2_Pin, (cmd & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D3_Pin, (cmd & 0x08) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D4_Pin, (cmd & 0x10) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D5_Pin, (cmd & 0x20) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D6_Pin, (cmd & 0x40) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D7_Pin, (cmd & 0x80) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(LCD_PORT, EN_Pin, GPIO_PIN_SET);
+    HAL_Delay(1);
+    HAL_GPIO_WritePin(LCD_PORT, EN_Pin, GPIO_PIN_RESET);
+    HAL_Delay(2);
+}
+
+void LCD_Data(uint8_t data)
+{
+    HAL_GPIO_WritePin(LCD_PORT, RS_Pin, GPIO_PIN_SET);
+
+    HAL_GPIO_WritePin(LCD_PORT, D0_Pin, (data & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D1_Pin, (data & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D2_Pin, (data & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D3_Pin, (data & 0x08) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D4_Pin, (data & 0x10) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D5_Pin, (data & 0x20) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D6_Pin, (data & 0x40) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LCD_PORT, D7_Pin, (data & 0x80) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(LCD_PORT, EN_Pin, GPIO_PIN_SET);
+    HAL_Delay(1);
+    HAL_GPIO_WritePin(LCD_PORT, EN_Pin, GPIO_PIN_RESET);
+    HAL_Delay(2);
+}
+
+void LCD_StringDisplay(uint8_t *str)
+{
+    while (*str != '\0')
+    {
+        LCD_Data(*str++);
+        HAL_Delay(1);
+    }
+}
